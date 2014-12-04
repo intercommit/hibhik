@@ -54,6 +54,9 @@ But it does nothing when a transaction completed. This is very efficient and as 
 It is one of the reasons I'm liking HikariCP: it does it best to do only the necessary minimal 
 thereby avoiding database calls that are not needed.  
 
+The test does take some time to finish after the database pool is closed 
+which indicates some thread-pools are lingering for a while - something is not enforcing a shutdown. 
+
 Output from `mvn clean test` :
 
 	[INFO] Scanning for projects...
