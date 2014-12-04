@@ -22,7 +22,7 @@ in one of Hikari's properties or properties for the datasource. There are two sm
 * `hibernate.connection.isolation` and `hibernate.hikari.transactionIsolation` are the same but one requires a number (e.g. "2") and the other the name of the constant (e.g. "TRANSACTION_READ_COMMITTED"). This is a bit confusing.
 * if you use a datasource option that is not supported by the driver, you do not see this in the logging. This test project uses a hacked version of the jdbcdslog-exp proxy which is the only reason why you actually do see a "Unsupported SQL feature" log statement.
 
-For this project the configuration is mostly done in `src/main/java/com/descartes/highik/Emf.java`.
+For this project the configuration is mostly done in `src/main/java/com/descartes/hibhik/Emf.java`.
 
 ### Logging ###
 
