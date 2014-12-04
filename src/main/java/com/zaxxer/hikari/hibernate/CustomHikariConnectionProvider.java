@@ -40,6 +40,10 @@ public class CustomHikariConnectionProvider extends HikariConnectionProvider {
 		super.stop();
 	}
 
+	/**
+	 * This is a hack, using reflection to get the pool-instance.
+	 * @return
+	 */
 	public HikariPool getPool() {
 		
 		HikariPool pool = null;
