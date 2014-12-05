@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 public class Emf {
 
 	private static final Logger log = LoggerFactory.getLogger(Emf.class);
+	public static final String UNIT_NAME = "test";
 	
 	static {
 		// hibernate logging via slf4j
@@ -34,7 +35,7 @@ public class Emf {
 	public void init() {
 		try {
 			// unitName "test" is set in src/main/resources/META-INF/persistence.xml
-			emf = openEntityFactory("test", "db-test.properties");
+			emf = openEntityFactory(UNIT_NAME, "db-test.properties");
 			log.info("Test db opened.");
 		} catch (Exception e) {
 			throw new RuntimeException(e);

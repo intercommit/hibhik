@@ -18,32 +18,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.descartes.hibhik.db.TestTable;
-import com.zaxxer.hikari.hibernate.CustomHikariConnectionProvider;
-import com.zaxxer.hikari.pool.HikariPool;
+import com.zaxxer.hikari.HikariPoolJmx;
 
 /**
  * Test various database CRUD operations and check that all connections are returned to pool afterwards.
  * @author FMartian
  *
  */
-@SuppressWarnings("unused")
 public class TestDbCrud {
 
 	private static final Logger log = LoggerFactory.getLogger(TestDbCrud.class);
 
 	private static Emf emf;
-	private static HikariPool pool;
+	private static HikariPoolJmx pool;
 	
 	@BeforeClass
 	public static void openDb() {
 		
 		emf = new Emf();
 		emf.init();
-		pool = CustomHikariConnectionProvider.connectionProviders.get(0).getPool();
-		
-		//org.hsqldb.jdbc.JDBCDataSource ds;
-		//org.jdbcdslog.DataSourceProxy dsp;
-		org.hsqldb.jdbc.JDBCConnection hc;
+		pool = new HikariPoolJmx(Emf.UNIT_NAME);
 	}
 	
 	@AfterClass

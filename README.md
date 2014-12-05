@@ -40,11 +40,10 @@ it is necessary to rely on the database's query log facilities.
 
 The main test in `src/test/java/com/descartes/hibhik/TestDbCrud.java` uses the transaction idioms for
 non-managed environment as recommended by Hibernate. Part of the test was to verify that connections are indeed 
-returned to the pool and do not remain in use. One option is to let HikariCP register itself as a JMX-bean (`registerMbeans=true`)
-but I wanted to have access to the actual pool-instance. Hibernate makes it really hard to do this without using 
-some deprecated method (does anybody know how to?) and HikariCP does not have a general (non-private) pool-instances variable.
-So this required some hacking to get to the actual HikariCP pool instance and resulted in 
-`src/main/java/com/zaxxer/hikari/hibernate/CustomHikariConnectionProvider`.
+returned to the pool and do not remain in use. To get this information, JMX is used.
+HikariCP registers a pool JMX bean when the option `registerMbeans=true` is used.
+To facilitate testing, the utility class `src/main/java/com/zaxxer/hikari/HikariPoolJmx` is used
+(this class hides the JMX details).
 
 ### Test results ###
 
@@ -55,7 +54,9 @@ It is one of the reasons I'm liking HikariCP: it does it best to do only the nec
 thereby avoiding database calls that are not needed.  
 
 The test does take some time to finish after the database pool is closed 
-which indicates some thread-pools are lingering for a while - something is not enforcing a shutdown. 
+which indicates some thread-pools are lingering for a while - something is not enforcing a shutdown
+or it could be that JUnit takes some time to wrap up the test (either way it is not a problem at the moment, 
+the linger time is constant).
 
 Output from `mvn clean test` :
 

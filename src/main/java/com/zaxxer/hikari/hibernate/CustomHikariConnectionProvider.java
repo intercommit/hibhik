@@ -15,12 +15,14 @@ import com.zaxxer.hikari.pool.HikariPool;
 
 /**
  * Extended original HikariConnectionProvider to get a handle of the HikariPool created via Hibernate.
- * Alternative is to fetch the JMX-bean of the HikariPool.
+ * Preferred method is to fetch the JMX-bean of the HikariPool (see {@link com.zaxxer.hikari.HikariPoolJmx}).
  * This class contains a hack so that the created pool is available in the {@link #connectionProviders} list.
  * @author FWiers
+ * @deprecated This class contains a non-supported hack, use {@link com.zaxxer.hikari.HikariPoolJmx} instead.
  *
  */
 @SuppressWarnings("serial")
+@Deprecated
 public class CustomHikariConnectionProvider extends HikariConnectionProvider {
 	
 	private static final Logger log = LoggerFactory.getLogger(CustomHikariConnectionProvider.class);
