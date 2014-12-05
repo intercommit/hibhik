@@ -6,7 +6,7 @@ together with [HikariCP](https://github.com/brettwooldridge/HikariCP) in a stand
 
 The goal of the project was to create a unit-test that outputs all relevant database operations for CRUD operations
 so that proper use of JPA EntityManagers and proper functioning of the database connection pool could be verified.
-The good news is that all functions fine, the bad news is that it required hacks to get it to run in a unit test.
+The good news is that all functions fine, the bad news is that it required some helpers and fixes to get it to run in a unit test.
 
 ### Configuration ###
 
@@ -16,11 +16,11 @@ There is no auto-discovery of entity-classes out-of-the-box, unless you use Spri
 
 Hibernate and HikariCP configuration can be specified in property-files. In a runtime-environment,
 these property-files would be loaded from a configuration directory. For this test project,
-the files are in `src/test/resources`. HikariCP throws an error if you make a typo
-in one of Hikari's properties or properties for the datasource. There are two small issues though:
+the files are in `src/test/resources`. Good to know: HikariCP throws an error if you make a typo
+in one of Hikari's properties or properties for the datasource. There are two small issues with the properties:
 
 * `hibernate.connection.isolation` and `hibernate.hikari.transactionIsolation` are the same but one requires a number (e.g. "2") and the other the name of the constant (e.g. "TRANSACTION_READ_COMMITTED"). This is a bit confusing.
-* if you use a datasource option that is not supported by the driver, you do not see this in the logging. This test project uses a hacked version of the jdbcdslog-exp proxy which is the only reason why you actually do see a "Unsupported SQL feature" log statement.
+* if you use a datasource option that is not supported by the driver, you do not see this in the logging. This test project uses a hacked version of the jdbcdslog-exp proxy which is the only reason why you actually do see a "Unsupported SQL feature" log statement. It is part of the normal operation though: HikariCP needs to find out what features the driver supports for proper operation and in some cases the only way to do that is to call functions and see if they throw a `java.sql.SQLFeatureNotSupportedException`.  
 
 For this project the configuration is mostly done in `src/main/java/com/descartes/hibhik/Emf.java`.
 
