@@ -76,6 +76,10 @@
 		<pluginManagement>
 			<plugins>
 				<plugin>
+					<artifactId>maven-resources-plugin</artifactId>
+					<version>2.7</version>
+				</plugin>
+				<plugin>
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.2</version>
 					<configuration>
@@ -85,6 +89,14 @@
 						<target>1.7</target>
 						<showDeprecation>true</showDeprecation>
 						<showWarnings>true</showWarnings>
+					</configuration>
+				</plugin>
+				<plugin>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>2.18</version>
+					<configuration>
+						<!-- prevent hanging for a while on fork-runner -->
+						<forkCount>0</forkCount>
 					</configuration>
 				</plugin>
 				<plugin>

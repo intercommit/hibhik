@@ -53,10 +53,10 @@ But it does nothing when a transaction completed. This is very efficient and as 
 It is one of the reasons I'm liking HikariCP: it does it best to do only the necessary minimal 
 thereby avoiding database calls that are not needed.  
 
-The test does take some time to finish after the database pool is closed 
-which indicates some thread-pools are lingering for a while - something is not enforcing a shutdown
-or it could be that JUnit takes some time to wrap up the test (either way it is not a problem at the moment, 
-the linger time is constant).
+The test does take some time to finish after the database pool is closed when the test-runner is forked.
+For some reason the Maven Surefire plugin waits a bit longer than normal for the fork running the tests to finish.
+To prevent this, the plugin is configured the option `<forkCount>0</forkCount>` 
+which results in the test finishing immediatly after the database is closed. 
 
 Output from `mvn clean test` :
 
