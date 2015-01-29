@@ -45,6 +45,7 @@ public class TestDbCrud {
 		emf = new Emf();
 		emf.init();
 		pool = new HikariPoolJmx(Emf.UNIT_NAME);
+		//testJmxCalls();
 	}
 	
 	@AfterClass
@@ -252,6 +253,31 @@ public class TestDbCrud {
 			em.close();
 			assertEquals("After rollback", 0, pool.getActiveConnections());
 		}
+	}
+	
+	static void testJmxCalls() {
+		
+		pool.getActiveConnections();
+		pool.getConnectionTimeout();
+		pool.getIdleConnections();
+		pool.getLeakDetectionThreshold();
+		pool.getMaximumPoolSize();
+		pool.getMaxLifetime();
+		pool.getMinimumIdle();
+		pool.getPoolName();
+		pool.getThreadsAwaitingConnection();
+		pool.getTotalConnections();
+		pool.getValidationTimeout();
+		pool.suspendPool();
+		pool.resumePool();
+		pool.setConnectionTimeout(1000);
+		pool.setIdleTimeout(1000);
+		pool.setLeakDetectionThreshold(10000);
+		pool.setMaximumPoolSize(10);
+		pool.setMaxLifetime(100000);
+		pool.setMinimumIdle(2);
+		pool.setValidationTimeout(1000);
+		pool.softEvictConnections();
 	}
 	
 }
