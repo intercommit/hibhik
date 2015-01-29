@@ -13,8 +13,10 @@ The good news is that all functions fine, the bad news is that it required some 
 Hibernate requires a file `META-INF/persistence.xml` to configure and startup a database connection pool.
 The file must contain the unit-name and the entity-classes contained in the database.
 There is no auto-discovery of entity-classes out-of-the-box, unless you use Spring.
+Allthough, for this test project just the unit-name appears to be enough
+(Hibernate somehow discovers the two entity-classes used in this project).
 
-Hibernate and HikariCP configuration can be specified in property-files. In a runtime-environment,
+The Hibernate and HikariCP configuration can be specified in property-files. In a runtime-environment,
 these property-files would be loaded from a configuration directory. For this test project,
 the files are in `src/test/resources`. Good to know: HikariCP throws an error if you make a typo
 in one of Hikari's properties or properties for the datasource. There are two small issues with the properties:
@@ -55,7 +57,7 @@ thereby avoiding database calls that are not needed.
 
 The test does take some time to finish after the database pool is closed when the test-runner is forked.
 For some reason the Maven Surefire plugin waits a bit longer than normal for the fork running the tests to finish.
-To prevent this, the plugin is configured the option `<forkCount>0</forkCount>` 
+To prevent this, the plugin is configured with the option `<forkCount>0</forkCount>` 
 which results in the test finishing immediatly after the database is closed. 
 
 Output from `mvn clean test` :
