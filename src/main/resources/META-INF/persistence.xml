@@ -4,6 +4,7 @@
 	xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence
                                 http://xmlns.jcp.org/xml/ns/persistence/persistence_2_1.xsd">
 	<persistence-unit name="test">
-		<class>com.descartes.db.Test</class>
+		<class>com.descartes.hibhik.db.TestTable</class>
+		<class>com.descartes.hibhik.db.BatchTestTable</class>
 	</persistence-unit>	
 </persistence>

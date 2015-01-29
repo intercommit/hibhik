@@ -17,6 +17,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.descartes.hibhik.db.BatchTestTable;
 import com.descartes.hibhik.db.TestTable;
 import com.zaxxer.hikari.HikariPoolJmx;
 
@@ -27,6 +28,12 @@ import com.zaxxer.hikari.HikariPoolJmx;
  */
 public class TestDbCrud {
 
+	/**
+	 * Batch insert only works when hibernate.jdbc.batch_size is set AND the record has no auto-generated ID.
+	 * This value corresponds with the hibernate.jdbc.batch_size in the propertries files.
+	 */
+	public static final int BATCH_SIZE = 5;
+	
 	private static final Logger log = LoggerFactory.getLogger(TestDbCrud.class);
 
 	private static Emf emf;
@@ -162,6 +169,31 @@ public class TestDbCrud {
 			@Override public void toDb(EntityManager em) {
 				List<TestTable> trs = em.createQuery("select tr from TestTable tr", TestTable.class).getResultList();
 		        assertEquals("No records", 0, trs.size());
+			}
+		});
+		
+		log.debug("batch insert");
+		dbTx(new DbAction() {
+			@Override public void toDb(EntityManager em) {
+				// Follow the idiom from Hibernate documented at:
+				// http://docs.jboss.org/hibernate/core/4.3/manual/en-US/html/ch15.html#batch-inserts
+				for (int i = 1; i < 2 * BATCH_SIZE + 1; i++) {
+					BatchTestTable tr = new BatchTestTable();
+					tr.setId((long) i);
+					tr.setName("Batchname" + i);
+					em.persist(tr);
+					if (i % BATCH_SIZE == 0) {
+						em.flush();
+						em.clear();
+					}
+				}
+			}
+		});
+		log.debug("verify batch insert");
+		db(new DbAction() {
+			@Override public void toDb(EntityManager em) {
+				List<BatchTestTable> trs = em.createQuery("select tr from BatchTestTable tr", BatchTestTable.class).getResultList();
+		        assertEquals(2 * BATCH_SIZE + " records", 2 * BATCH_SIZE, trs.size());
 			}
 		});
 	}
