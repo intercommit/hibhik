@@ -15,6 +15,7 @@ import org.hibernate.ejb.HibernatePersistence;
  * Prevents warning message from Hibernate:
  * <br>WARN org.hibernate.ejb.HibernatePersistence - HHH015016: Encountered a deprecated javax.persistence.spi.PersistenceProvider [org.hibernate.ejb.HibernatePersistence]; use [org.hibernate.jpa.HibernatePersistenceProvider] instead.
  * <br>Copied from http://ask.ttwait.com/que/23041964
+ * <br>Alternative solution and open bug at: https://hibernate.atlassian.net/browse/HHH-9141
  * @author FWiers
  *
  */
@@ -26,7 +27,8 @@ public class CustomPersistence extends Persistence {
     }
 
     public static EntityManagerFactory createEntityManagerFactory(String persistenceUnitName, Map properties) {
-        EntityManagerFactory emf = null;
+        
+    	EntityManagerFactory emf = null;
         List<PersistenceProvider> providers = getProviders();
         PersistenceProvider defaultProvider = null;
         for (PersistenceProvider provider : providers) {

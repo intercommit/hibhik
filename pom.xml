@@ -10,6 +10,7 @@
 		<!-- Version used by logback -->
 		<slf4j.version>1.7.6</slf4j.version>
 		<logback.version>1.1.2</logback.version>
+		<hibernate.version>4.3.8.Final</hibernate.version>
 	</properties>
 
 	<dependencyManagement>
@@ -42,7 +43,12 @@
 		<dependency>
 			<groupId>org.hibernate</groupId>
 			<artifactId>hibernate-entitymanager</artifactId>
-			<version>4.3.8.Final</version>
+			<version>${hibernate.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate</groupId>
+			<artifactId>hibernate-hikaricp</artifactId>
+			<version>${hibernate.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.zaxxer</groupId>

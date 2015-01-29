@@ -99,7 +99,7 @@ Output from `mvn clean test` :
 	12:42:27.190 [main] INFO  org.hibernate.cfg.Environment - HHH000206: hibernate.properties not found
 	12:42:27.191 [main] INFO  org.hibernate.cfg.Environment - HHH000021: Bytecode provider name : javassist
 	12:42:27.435 [main] INFO  o.h.annotations.common.Version - HCANN000001: Hibernate Commons Annotations {4.0.5.Final}
-	12:42:27.476 [main] INFO  o.h.e.j.c.i.ConnectionProviderInitiator - HHH000130: Instantiating explicit connection provider: com.zaxxer.hikari.hibernate.HikariConnectionProvider
+	12:42:27.476 [main] INFO  o.h.e.j.c.i.ConnectionProviderInitiator - HHH000130: Instantiating explicit connection provider: org.hibernate.hikaricp.internal.HikariCPConnectionProvider
 	12:42:27.477 [main] DEBUG c.z.h.h.HikariConnectionProvider - Configuring HikariCP
 	12:42:28.093 [main] DEBUG c.z.hikari.metrics.CodaHaleShim - com.codahale.metrics.MetricRegistry not found, generating stub
 	12:42:28.102 [main] DEBUG com.zaxxer.hikari.HikariConfig - HikariCP pool test configuration:
