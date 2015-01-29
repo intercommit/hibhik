@@ -71,13 +71,28 @@ public class HikariPoolJmx implements HikariPoolMBean {
 
 	@Override
 	public void softEvictConnections() {
+		invokeMethod("softEvictConnections");
+	}
 
+	@Override
+	public void suspendPool() {
+		invokeMethod("suspendPool");
+	}
+
+	@Override
+	public void resumePool() {
+		invokeMethod("resumePool");
+	}
+
+	protected void invokeMethod(String methodName) {
+		
 		try {
-			mBeanServer.invoke(poolAccessor, "softEvictConnections", null, null);
+			mBeanServer.invoke(poolAccessor, methodName, null, null);
 		} catch (RuntimeException e) {
 			throw e;
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
 	}
+
 }
