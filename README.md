@@ -8,6 +8,9 @@ The goal of the project was to create a unit-test that outputs all relevant data
 so that proper use of JPA EntityManagers and proper functioning of the database connection pool could be verified.
 The good news is that all functions fine, the bad news is that it required some helpers and fixes to get it to run in a unit test.
 
+For a plain JDBC alternative to this project, have a look at the [fwutil-jdbc](https://github.com/fwi/fwutil-jdbc) project. 
+It contains the same kind of unit-tests as this project but does not use Hibernate.
+
 ### Configuration ###
 
 Hibernate requires a file `META-INF/persistence.xml` to configure and startup a database connection pool.
