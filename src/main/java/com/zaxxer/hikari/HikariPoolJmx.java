@@ -7,14 +7,14 @@ import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
-import com.zaxxer.hikari.pool.HikariPoolMBean;
-import com.zaxxer.hikari.HikariConfigMBean;
+import com.zaxxer.hikari.HikariPoolMXBean;
+import com.zaxxer.hikari.HikariConfigMXBean;
 
 /**
  * Little Helper class to get access to the various HikariPool methods via JMX.
  * Usage of this class requires the HikariCP configuration option <code>hibernate.hikari.registerMbeans=true</code>
  */
-public class HikariPoolJmx implements HikariPoolMBean, HikariConfigMBean {
+public class HikariPoolJmx implements HikariPoolMXBean, HikariConfigMXBean {
 	
 	private final ObjectName poolAccessor;
 	private final ObjectName poolConfigAccessor;
