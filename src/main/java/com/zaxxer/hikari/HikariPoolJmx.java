@@ -168,6 +168,16 @@ public class HikariPoolJmx implements HikariPoolMXBean, HikariConfigMXBean {
 		setConfigNumber("ValidationTimeout", validationTimeoutMs);
 	}
 	
+	@Override
+	public void setUsername(String username) {
+		setConfigString("Username", username);
+	}
+	
+	@Override
+	public void setPassword(String password) {
+		setConfigString("Password", password);
+	}
+
 	protected Number getConfigNumber(String attributeName) {
 		
 		try {
@@ -180,6 +190,17 @@ public class HikariPoolJmx implements HikariPoolMXBean, HikariConfigMXBean {
 	}
 
 	protected void setConfigNumber(String attributeName, Number value) {
+		
+		try {
+			mBeanServer.setAttribute(poolConfigAccessor, new Attribute(attributeName, value));
+		} catch (RuntimeException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+	}
+	
+	protected void setConfigString(String attributeName, String value) {
 		
 		try {
 			mBeanServer.setAttribute(poolConfigAccessor, new Attribute(attributeName, value));

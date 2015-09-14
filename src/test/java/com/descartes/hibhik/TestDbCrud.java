@@ -1,6 +1,6 @@
 package com.descartes.hibhik;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 import java.util.List;
 
@@ -45,7 +45,6 @@ public class TestDbCrud {
 		emf = new Emf();
 		emf.init();
 		pool = new HikariPoolJmx(Emf.UNIT_NAME);
-		//testJmxCalls();
 	}
 	
 	@AfterClass
@@ -255,8 +254,24 @@ public class TestDbCrud {
 		}
 	}
 	
-	static void testJmxCalls() {
+	/*
+	 * Run this test 'manually'. 
+	 * This test sets a random database-password which will fail other tests.
+	 */
+	// @Test
+	public void checkJmxCalls() {
 		
+		try {
+			callJmxFunctions();
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail();
+		}
+	}
+	
+	static void callJmxFunctions() {
+		
+		log.debug("Testing JMX calls");
 		pool.getActiveConnections();
 		pool.getConnectionTimeout();
 		pool.getIdleConnections();
@@ -278,6 +293,9 @@ public class TestDbCrud {
 		pool.setMinimumIdle(2);
 		pool.setValidationTimeout(1000);
 		pool.softEvictConnections();
+		pool.setUsername("test");
+		pool.setPassword("bla");
+		log.debug("Done testing JMX calls");
 	}
 	
 }
