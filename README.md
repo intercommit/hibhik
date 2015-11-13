@@ -25,21 +25,29 @@ the files are in `src/test/resources`. Good to know: HikariCP throws an error if
 in one of Hikari's properties or properties for the datasource. There are two small issues with the properties:
 
 * `hibernate.connection.isolation` and `hibernate.hikari.transactionIsolation` are the same but one requires a number (e.g. "2") and the other the name of the constant (e.g. "TRANSACTION_READ_COMMITTED"). This is a bit confusing.
-* if you use a datasource option that is not supported by the driver, you do not see this in the logging. This test project uses a hacked version of the jdbcdslog-exp proxy which is the only reason why you actually do see a "Unsupported SQL feature" log statement. It is part of the normal operation though: HikariCP needs to find out what features the driver supports for proper operation and in some cases the only way to do that is to call functions and see if they throw a `java.sql.SQLFeatureNotSupportedException`.  
+* if you use a datasource option that is not supported by the driver, you do not see this in the logging. This test project uses the log4jdbc spy which is the only reason why you actually do see a "Unsupported SQL feature" log statement. It is part of the normal operation though: HikariCP needs to find out what features the driver supports for proper operation and in some cases the only way to do that is to call functions and see if they throw a `java.sql.SQLFeatureNotSupportedException`.  
 
 For this project the configuration is mostly done in `src/main/java/com/descartes/hibhik/Emf.java`.
 
 ### Logging ###
 
 Part of the goal of the test is to see all queries that go to the database. 
-For this reason the proxy from [jdbcdslog-exp](https://code.google.com/p/jdbcdslog-exp/) is used.
-Unfortunately, that gave rise to a number of errors and to solve that a number of fixes/hacks are used.
-The classes with fixes are in `src/main/java/org/jdbcdslog`.
+For this reason the spy from [log4jdbc-log4j2](https://code.google.com/p/log4jdbc-log4j2/) is used.
+This JDBC logging spy is also noted on HikariCP's [JDBC Logging](https://github.com/brettwooldridge/HikariCP/wiki/JDBC-Logging) page.
+Unfortunately, it did not work out of the box for HSQLDB in combination with a `dataSourceClassName`. 
+A custom datasource "spy" class is used, see `src/main/java/org/hsqldb/jdbc`.
+This custom datasource "spy" class is not needed though, there are two alternatives to logging the JDBC statements.
+One alternative is to specify a `driverClassName`" instead of a `dataSourceClassName`,
+the other alternative is to use HSQLDB's own "sqllog" option.
+Both of these options are shown and documented in `src/test/resources/db-test.properties`.
 
-But jdbcdslog-exp does not log commit and rollback statements, which renders it a bit useless for this test project. 
-However, it is included to show that it can work and it might come in handy in the future.
-For proper database query logging a HSQL parameter is used (`hsqldb.sqllog=3`). For other databases, 
-it is necessary to rely on the database's query log facilities.
+The use of HSQLDB's own "sqllog" option (`hsqldb.sqllog=3`) is recommended 
+if you are particularly interested in commit and rollback statements.
+These statements are clearly visible when using the "sqllog" option, while `log4jdbc-log4j2` only logs a call to
+the commit and rollback connection methods between a lot of other connection method calls (logger category `jdbc.audit`).  
+
+Note that other database drivers do have good support for logging and do not require a spy like `log4jdbc-log4j2`, 
+see also the aforementioned [JDBC Logging](https://github.com/brettwooldridge/HikariCP/wiki/JDBC-Logging) page.
 
 ### Testing ###
 
@@ -58,13 +66,17 @@ But it does nothing when a transaction completed. This is very efficient and as 
 It is one of the reasons I'm liking HikariCP: it does it best to do only the necessary minimal 
 thereby avoiding database calls that are not needed.  
 
-With HikariCP versions 2.3.x (but not the currently used 2.4.x), 
-the test does take some time to finish after the database pool is closed.
+With older HikariCP versions 2.3.x the test does take some time to finish after the database pool is closed
+(this does not happen with the currently used 2.4.x version).
 For some reason the Maven Surefire plugin waits a bit longer than normal for the fork running the tests to finish.
 To prevent this, the plugin is can be configured with the option `<forkCount>0</forkCount>` 
 which results in the test finishing immediatly after the database is closed. 
 
-Output from `mvn clean test` :
+The various logging categories for `log4jdbc-log4j2` are shown in 
+`src/test/resources/logback-test.xml` and many are disabled, i.e. a lot more detailed logging is available.
+Also note the `src/test/resources/log4jdbc.log4j2.properties` which is required to get logging output using SLF4J.
+
+Output from `mvn test` :
 
 	[INFO] Scanning for projects...
 	[INFO]                                                                         
@@ -72,25 +84,19 @@ Output from `mvn clean test` :
 	[INFO] Building hibhik 0.2.4-SNAPSHOT
 	[INFO] ------------------------------------------------------------------------
 	[INFO] 
-	[INFO] --- maven-clean-plugin:2.6.1:clean (default-clean) @ hibhik ---
-	[INFO] Deleting C:\dev\git\hibhik\target
-	[INFO] 
 	[INFO] --- maven-resources-plugin:2.7:resources (default-resources) @ hibhik ---
 	[INFO] Using 'UTF-8' encoding to copy filtered resources.
 	[INFO] Copying 1 resource
 	[INFO] 
 	[INFO] --- maven-compiler-plugin:3.3:compile (default-compile) @ hibhik ---
-	[INFO] Changes detected - recompiling the module!
-	[INFO] Compiling 9 source files to C:\dev\git\hibhik\target\classes
-	[WARNING] /C:/dev/git/hibhik/src/main/java/javax/persistence/CustomPersistence.java:[12,25] org.hibernate.ejb.HibernatePersistence in org.hibernate.ejb has been deprecated
+	[INFO] Nothing to compile - all classes are up to date
 	[INFO] 
 	[INFO] --- maven-resources-plugin:2.7:testResources (default-testResources) @ hibhik ---
 	[INFO] Using 'UTF-8' encoding to copy filtered resources.
-	[INFO] Copying 4 resources
+	[INFO] Copying 5 resources
 	[INFO] 
 	[INFO] --- maven-compiler-plugin:3.3:testCompile (default-testCompile) @ hibhik ---
-	[INFO] Changes detected - recompiling the module!
-	[INFO] Compiling 2 source files to C:\dev\git\hibhik\target\test-classes
+	[INFO] Nothing to compile - all classes are up to date
 	[INFO] 
 	[INFO] --- maven-surefire-plugin:2.18.1:test (default-test) @ hibhik ---
 	[INFO] Surefire report directory: C:\dev\git\hibhik\target\surefire-reports
@@ -99,238 +105,168 @@ Output from `mvn clean test` :
 	 T E S T S
 	-------------------------------------------------------
 	Running com.descartes.hibhik.TestDbCrud
-	11:28:37.576 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [
+	16:10:36.070 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [
 		name: test
 		...]
-	11:28:37.674 [main] INFO  org.hibernate.Version - HHH000412: Hibernate Core {4.3.11.Final}
-	11:28:37.677 [main] INFO  org.hibernate.cfg.Environment - HHH000206: hibernate.properties not found
-	11:28:37.679 [main] INFO  org.hibernate.cfg.Environment - HHH000021: Bytecode provider name : javassist
-	11:28:37.909 [main] INFO  o.h.annotations.common.Version - HCANN000001: Hibernate Commons Annotations {4.0.5.Final}
-	11:28:37.945 [main] INFO  o.h.e.j.c.i.ConnectionProviderInitiator - HHH000130: Instantiating explicit connection provider: com.zaxxer.hikari.hibernate.HikariConnectionProvider
-	11:28:37.947 [main] DEBUG c.z.h.h.HikariConnectionProvider - Configuring HikariCP
-	11:28:37.956 [main] DEBUG com.zaxxer.hikari.HikariConfig - HikariCP pool test configuration:
-	11:28:37.963 [main] DEBUG com.zaxxer.hikari.HikariConfig - allowPoolSuspension.............true
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - autoCommit......................false
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - catalog.........................
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - connectionInitSql...............
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - connectionTestQuery.............
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - connectionTimeout...............5000
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSource......................
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSourceClassName.............org.jdbcdslog.CustomDataSourceProxy
-	11:28:37.964 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSourceJNDI..................
-	11:28:37.965 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSourceProperties............{user=sa, password=<masked>, url=jdbc:hsqldb:mem:testdb;hsqldb.sqllog=3, targetDS=org.hsqldb.jdbc.JDBCDataSource}
-	11:28:37.965 [main] DEBUG com.zaxxer.hikari.HikariConfig - driverClassName.................
-	11:28:37.965 [main] DEBUG com.zaxxer.hikari.HikariConfig - healthCheckProperties...........{}
-	11:28:37.965 [main] DEBUG com.zaxxer.hikari.HikariConfig - healthCheckRegistry.............
-	11:28:37.965 [main] DEBUG com.zaxxer.hikari.HikariConfig - idleTimeout.....................600000
-	11:28:37.965 [main] DEBUG com.zaxxer.hikari.HikariConfig - initializationFailFast..........true
-	11:28:37.966 [main] DEBUG com.zaxxer.hikari.HikariConfig - isolateInternalQueries..........false
-	11:28:37.966 [main] DEBUG com.zaxxer.hikari.HikariConfig - jdbc4ConnectionTest.............false
-	11:28:37.966 [main] DEBUG com.zaxxer.hikari.HikariConfig - jdbcUrl.........................
-	11:28:37.966 [main] DEBUG com.zaxxer.hikari.HikariConfig - leakDetectionThreshold..........10000
-	11:28:37.967 [main] DEBUG com.zaxxer.hikari.HikariConfig - maxLifetime.....................1800000
-	11:28:37.967 [main] DEBUG com.zaxxer.hikari.HikariConfig - maximumPoolSize.................4
-	11:28:37.967 [main] DEBUG com.zaxxer.hikari.HikariConfig - metricRegistry..................
-	11:28:37.967 [main] DEBUG com.zaxxer.hikari.HikariConfig - metricsTrackerFactory...........
-	11:28:37.967 [main] DEBUG com.zaxxer.hikari.HikariConfig - minimumIdle.....................1
-	11:28:37.967 [main] DEBUG com.zaxxer.hikari.HikariConfig - password........................<masked>
-	11:28:37.967 [main] DEBUG com.zaxxer.hikari.HikariConfig - poolName........................test
-	11:28:37.968 [main] DEBUG com.zaxxer.hikari.HikariConfig - readOnly........................
-	11:28:37.968 [main] DEBUG com.zaxxer.hikari.HikariConfig - registerMbeans..................true
-	11:28:37.968 [main] DEBUG com.zaxxer.hikari.HikariConfig - scheduledExecutorService........
-	11:28:37.968 [main] DEBUG com.zaxxer.hikari.HikariConfig - threadFactory...................
-	11:28:37.968 [main] DEBUG com.zaxxer.hikari.HikariConfig - transactionIsolation............TRANSACTION_READ_COMMITTED
-	11:28:37.968 [main] DEBUG com.zaxxer.hikari.HikariConfig - username........................
-	11:28:37.969 [main] DEBUG com.zaxxer.hikari.HikariConfig - validationTimeout...............5000
-	11:28:37.970 [main] INFO  com.zaxxer.hikari.HikariDataSource - Hikari pool test is starting.
-	2015-08-17 11:28:38.387 1 INSERT INTO SYSTEM_LOBS.BLOCKS VALUES(?,?,?) (0,2147483647,0)
-	2015-08-17 11:28:38.389 1 COMMIT 
-	2015-08-17 11:28:38.398 2 CALL USER() 
-	2015-08-17 11:28:38.398 2 COMMIT 
-	11:28:38.404 [main] INFO  org.jdbcdslog.ConnectionLogger - connect to URL jdbc:hsqldb:mem:testdb;hsqldb.sqllog=3 for user SA
-	11:28:38.420 [main] INFO  org.jdbcdslog.ConnectionLogger - Unsupported SQL feature [setNetworkTimeout] called with arguments [java.util.concurrent.ThreadPoolExecutor@589341ca[Running, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], 5000]
-	11:28:38.420 [main] DEBUG com.zaxxer.hikari.pool.PoolElf - test - Connection.setNetworkTimeout() is not supported (feature not supported)
-	11:28:38.423 [main] DEBUG com.zaxxer.hikari.pool.HikariPool - test - Connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca added to pool
-	11:28:38.435 [main] DEBUG c.z.h.h.HikariConnectionProvider - HikariCP Configured
-	2015-08-17 11:28:38.444 2 SELECT * FROM INFORMATION_SCHEMA.SYSTEM_TYPEINFO 
-	11:28:38.465 [main] INFO  org.hibernate.dialect.Dialect - HHH000400: Using dialect: org.hibernate.dialect.HSQLDialect
-	11:28:38.609 [main] INFO  o.h.h.i.a.ASTQueryTranslatorFactory - HHH000397: Using ASTQueryTranslatorFactory
-	11:28:39.035 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000228: Running hbm2ddl schema update
-	11:28:39.035 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000102: Fetching database metadata
-	2015-08-17 11:28:39.046 2 select sequence_name from information_schema.system_sequences 
-	11:28:39.074 [main] INFO  org.jdbcdslog.StatementLogger - java.sql.Statement.executeQuery: select sequence_name from information_schema.system_sequences;
-	11:28:39.079 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {'LOB_ID'}
-	11:28:39.079 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000396: Updating schema
-	2015-08-17 11:28:39.083 2 SELECT * FROM INFORMATION_SCHEMA.SYSTEM_TABLES WHERE TRUE AND TABLE_NAME LIKE 'TABLE_BATCH_TEST' AND TABLE_TYPE IN ('TABLE','VIEW') 
-	11:28:39.092 [main] INFO  java.sql.DatabaseMetaData - HHH000262: Table not found: table_batch_test
-	2015-08-17 11:28:39.094 2 SELECT * FROM INFORMATION_SCHEMA.SYSTEM_TABLES WHERE TRUE AND TABLE_NAME LIKE 'TABLE_TEST' AND TABLE_TYPE IN ('TABLE','VIEW') 
-	11:28:39.094 [main] INFO  java.sql.DatabaseMetaData - HHH000262: Table not found: table_test
-	2015-08-17 11:28:39.095 2 SELECT * FROM INFORMATION_SCHEMA.SYSTEM_TABLES WHERE TRUE AND TABLE_NAME LIKE 'TABLE_BATCH_TEST' AND TABLE_TYPE IN ('TABLE','VIEW') 
-	11:28:39.095 [main] INFO  java.sql.DatabaseMetaData - HHH000262: Table not found: table_batch_test
-	2015-08-17 11:28:39.096 2 SELECT * FROM INFORMATION_SCHEMA.SYSTEM_TABLES WHERE TRUE AND TABLE_NAME LIKE 'TABLE_TEST' AND TABLE_TYPE IN ('TABLE','VIEW') 
-	11:28:39.096 [main] INFO  java.sql.DatabaseMetaData - HHH000262: Table not found: table_test
-	2015-08-17 11:28:39.097 2 SELECT * FROM INFORMATION_SCHEMA.SYSTEM_TABLES WHERE TRUE AND TABLE_NAME LIKE 'TABLE_BATCH_TEST' AND TABLE_TYPE IN ('TABLE','VIEW') 
-	11:28:39.098 [main] INFO  java.sql.DatabaseMetaData - HHH000262: Table not found: table_batch_test
-	2015-08-17 11:28:39.099 2 SELECT * FROM INFORMATION_SCHEMA.SYSTEM_TABLES WHERE TRUE AND TABLE_NAME LIKE 'TABLE_TEST' AND TABLE_TYPE IN ('TABLE','VIEW') 
-	11:28:39.100 [main] INFO  java.sql.DatabaseMetaData - HHH000262: Table not found: table_test
-	2015-08-17 11:28:39.101 2 create table table_batch_test (id bigint not null, name varchar(255), primary key (id)) 
-	2015-08-17 11:28:39.102 2 COMMIT 
-	11:28:39.102 [main] INFO  org.jdbcdslog.StatementLogger - java.sql.Statement.executeUpdate: create table table_batch_test (id bigint not null, name varchar(255), primary key (id));
-	2015-08-17 11:28:39.102 2 create table table_test (id bigint generated by default as identity (start with 1), name varchar(255), primary key (id)) 
-	2015-08-17 11:28:39.103 2 COMMIT 
-	11:28:39.103 [main] INFO  org.jdbcdslog.StatementLogger - java.sql.Statement.executeUpdate: create table table_test (id bigint generated by default as identity (start with 1), name varchar(255), primary key (id));
-	11:28:39.103 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000232: Schema update complete
-	2015-08-17 11:28:39.103 2 ROLLBACK 
-	11:28:39.103 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.103 [main] DEBUG com.zaxxer.hikari.pool.PoolElf - nothing - Reset (org.hsqldb.jdbc.JDBCConnection@e8ef7ca) on connection {}
-	11:28:39.158 [main] INFO  com.descartes.hibhik.Emf - Test db opened.
-	11:28:39.161 [main] DEBUG com.descartes.hibhik.TestDbCrud - insert a record
-	11:28:39.235 [main] DEBUG org.hibernate.SQL - insert into table_test (name, id) values (?, default)
-	2015-08-17 11:28:39.253 2 insert into table_test (name, id) values (?, default) ('Marvin')
-	11:28:39.253 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_test (name, id) values ('Marvin', default);
-	11:28:39.253 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {1}
-	2015-08-17 11:28:39.261 2 COMMIT 
-	11:28:39.264 [main] DEBUG com.descartes.hibhik.TestDbCrud - list all records
-	11:28:39.380 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_
-	2015-08-17 11:28:39.382 2 select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
-	11:28:39.382 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_;
-	11:28:39.382 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {1, 'Marvin'}
-	2015-08-17 11:28:39.392 2 ROLLBACK 
-	11:28:39.392 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.392 [main] DEBUG com.descartes.hibhik.TestDbCrud - First record ID is 1
-	11:28:39.393 [main] DEBUG com.descartes.hibhik.TestDbCrud - list all records typesafe
-	11:28:39.415 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_
-	2015-08-17 11:28:39.416 2 select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
-	11:28:39.416 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_;
-	11:28:39.417 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {1, 'Marvin'}
-	2015-08-17 11:28:39.417 2 ROLLBACK 
-	11:28:39.417 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.418 [main] DEBUG com.descartes.hibhik.TestDbCrud - find by ID
-	11:28:39.421 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=?
-	2015-08-17 11:28:39.422 2 select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=? (1)
-	11:28:39.423 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=1;
-	11:28:39.424 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {1, 'Marvin'}
-	2015-08-17 11:28:39.427 2 ROLLBACK 
-	11:28:39.427 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.427 [main] DEBUG com.descartes.hibhik.TestDbCrud - update name
-	11:28:39.428 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=?
-	2015-08-17 11:28:39.429 2 select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=? (1)
-	11:28:39.429 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=1;
-	11:28:39.429 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {1, 'Marvin'}
-	11:28:39.439 [main] DEBUG org.hibernate.SQL - update table_test set name=? where id=?
-	11:28:39.439 [main] INFO  org.jdbcdslog.StatementLogger - update table_test set name='Marvin Martian' where id=1;
-	2015-08-17 11:28:39.441 2 update table_test set name=? where id=? ('Marvin Martian',1)
-	2015-08-17 11:28:39.442 2 COMMIT 
-	11:28:39.442 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify updated name
-	11:28:39.443 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=?
-	2015-08-17 11:28:39.444 2 select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=? (1)
-	11:28:39.444 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=1;
-	11:28:39.444 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {1, 'Marvin Martian'}
-	2015-08-17 11:28:39.445 2 ROLLBACK 
-	11:28:39.445 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.446 [main] DEBUG com.descartes.hibhik.TestDbCrud - insert with flush
-	11:28:39.447 [main] DEBUG org.hibernate.SQL - insert into table_test (name, id) values (?, default)
-	2015-08-17 11:28:39.448 2 insert into table_test (name, id) values (?, default) ('Record 2')
-	11:28:39.448 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_test (name, id) values ('Record 2', default);
-	11:28:39.448 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {2}
-	11:28:39.448 [main] DEBUG com.descartes.hibhik.TestDbCrud - Second record ID is 2
-	2015-08-17 11:28:39.449 2 COMMIT 
-	11:28:39.449 [main] DEBUG com.descartes.hibhik.TestDbCrud - fail an update
-	11:28:39.451 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=?
-	2015-08-17 11:28:39.452 2 select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=? (2)
-	11:28:39.452 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=2;
-	11:28:39.452 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {2, 'Record 2'}
-	2015-08-17 11:28:39.453 2 ROLLBACK 
-	11:28:39.454 [main] DEBUG com.descartes.hibhik.TestDbCrud - Tx rolled back: java.lang.RuntimeException: Rollback test.
-	11:28:39.454 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify update failed
-	11:28:39.455 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=?
-	2015-08-17 11:28:39.456 2 select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=? (2)
-	11:28:39.456 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=2;
-	11:28:39.456 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {2, 'Record 2'}
-	2015-08-17 11:28:39.457 2 ROLLBACK 
-	11:28:39.457 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.457 [main] DEBUG com.descartes.hibhik.TestDbCrud - delete first record by ID, without 'finding' the record
-	11:28:39.472 [main] DEBUG org.hibernate.SQL - delete from table_test where id=?
-	2015-08-17 11:28:39.473 2 delete from table_test where id=? (1)
-	11:28:39.473 [main] INFO  org.jdbcdslog.StatementLogger - delete from table_test where id=1;
-	2015-08-17 11:28:39.473 2 COMMIT 
-	11:28:39.474 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify delete of first record
-	11:28:39.475 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_
-	2015-08-17 11:28:39.476 2 select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
-	11:28:39.476 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_;
-	11:28:39.476 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {2, 'Record 2'}
-	2015-08-17 11:28:39.476 2 ROLLBACK 
-	11:28:39.476 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.477 [main] DEBUG com.descartes.hibhik.TestDbCrud - delete second record by ID, 'finding' the record first
-	11:28:39.478 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=?
-	2015-08-17 11:28:39.479 2 select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=? (2)
-	11:28:39.479 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ where testtable0_.id=2;
-	11:28:39.479 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {2, 'Record 2'}
-	11:28:39.481 [main] DEBUG org.hibernate.SQL - delete from table_test where id=?
-	11:28:39.482 [main] INFO  org.jdbcdslog.StatementLogger - delete from table_test where id=2;
-	2015-08-17 11:28:39.483 2 delete from table_test where id=? (2)
-	2015-08-17 11:28:39.483 2 COMMIT 
-	11:28:39.484 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify no records in table left
-	11:28:39.485 [main] DEBUG org.hibernate.SQL - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_
-	2015-08-17 11:28:39.485 2 select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
-	11:28:39.486 [main] INFO  org.jdbcdslog.StatementLogger - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_;
-	2015-08-17 11:28:39.486 2 ROLLBACK 
-	11:28:39.486 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.486 [main] DEBUG com.descartes.hibhik.TestDbCrud - batch insert
-	11:28:39.488 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.489 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname1', 1);
-	11:28:39.490 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.490 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname2', 2);
-	11:28:39.490 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.490 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname3', 3);
-	11:28:39.490 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.490 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname4', 4);
-	11:28:39.491 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.491 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname5', 5);
-	2015-08-17 11:28:39.491 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname1',1)
-	2015-08-17 11:28:39.491 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname2',2)
-	2015-08-17 11:28:39.491 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname3',3)
-	2015-08-17 11:28:39.491 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname4',4)
-	2015-08-17 11:28:39.491 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname5',5)
-	11:28:39.496 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.496 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname6', 6);
-	11:28:39.497 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.497 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname7', 7);
-	11:28:39.498 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.498 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname8', 8);
-	11:28:39.498 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.498 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname9', 9);
-	11:28:39.499 [main] DEBUG org.hibernate.SQL - insert into table_batch_test (name, id) values (?, ?)
-	11:28:39.499 [main] INFO  org.jdbcdslog.StatementLogger - insert into table_batch_test (name, id) values ('Batchname10', 10);
-	2015-08-17 11:28:39.499 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname6',6)
-	2015-08-17 11:28:39.499 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname7',7)
-	2015-08-17 11:28:39.499 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname8',8)
-	2015-08-17 11:28:39.500 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname9',9)
-	2015-08-17 11:28:39.500 2 insert into table_batch_test (name, id) values (?, ?) ('Batchname10',10)
-	2015-08-17 11:28:39.500 2 COMMIT 
-	11:28:39.500 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify batch insert
-	11:28:39.504 [main] DEBUG org.hibernate.SQL - select batchtestt0_.id as id1_0_, batchtestt0_.name as name2_0_ from table_batch_test batchtestt0_
-	2015-08-17 11:28:39.505 2 select batchtestt0_.id as id1_0_, batchtestt0_.name as name2_0_ from table_batch_test batchtestt0_ 
-	11:28:39.506 [main] INFO  org.jdbcdslog.StatementLogger - select batchtestt0_.id as id1_0_, batchtestt0_.name as name2_0_ from table_batch_test batchtestt0_;
-	11:28:39.506 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {1, 'Batchname1'}
-	11:28:39.506 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {2, 'Batchname2'}
-	11:28:39.507 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {3, 'Batchname3'}
-	11:28:39.507 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {4, 'Batchname4'}
-	11:28:39.508 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {5, 'Batchname5'}
-	11:28:39.508 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {6, 'Batchname6'}
-	11:28:39.508 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {7, 'Batchname7'}
-	11:28:39.509 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {8, 'Batchname8'}
-	11:28:39.509 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {9, 'Batchname9'}
-	11:28:39.509 [main] INFO  org.jdbcdslog.ResultSetLogger - java.sql.ResultSet.next {10, 'Batchname10'}
-	2015-08-17 11:28:39.510 2 ROLLBACK 
-	11:28:39.510 [main] DEBUG c.z.hikari.proxy.ConnectionProxy - test - Executed rollback on connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca due to dirty commit state on close().
-	11:28:39.512 [main] INFO  com.zaxxer.hikari.pool.HikariPool - Hikari pool test is shutting down.
-	11:28:39.512 [main] DEBUG com.zaxxer.hikari.pool.HikariPool - Before shutdown pool test stats (total=1, active=0, idle=1, waiting=0)
-	11:28:39.514 [Hikari connection closer (pool test)] DEBUG com.zaxxer.hikari.pool.PoolElf - test - Closing connection org.hsqldb.jdbc.JDBCConnection@e8ef7ca: (connection evicted by user)
-	2015-08-17 11:28:39.514 2 ROLLBACK 
-	11:28:39.514 [main] DEBUG com.zaxxer.hikari.pool.HikariPool - After shutdown pool test stats (total=0, active=0, idle=0, waiting=0)
-	11:28:39.515 [main] INFO  com.descartes.hibhik.Emf - Test db closed.
-	Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.432 sec - in com.descartes.hibhik.TestDbCrud
+	16:10:36.161 [main] INFO  org.hibernate.Version - HHH000412: Hibernate Core {4.3.11.Final}
+	16:10:36.163 [main] INFO  org.hibernate.cfg.Environment - HHH000206: hibernate.properties not found
+	16:10:36.165 [main] INFO  org.hibernate.cfg.Environment - HHH000021: Bytecode provider name : javassist
+	16:10:36.395 [main] INFO  o.h.annotations.common.Version - HCANN000001: Hibernate Commons Annotations {4.0.5.Final}
+	16:10:36.427 [main] INFO  o.h.e.j.c.i.ConnectionProviderInitiator - HHH000130: Instantiating explicit connection provider: com.zaxxer.hikari.hibernate.HikariConnectionProvider
+	16:10:36.430 [main] DEBUG c.z.h.h.HikariConnectionProvider - Configuring HikariCP
+	16:10:36.437 [main] DEBUG com.zaxxer.hikari.HikariConfig - test - configuration:
+	16:10:36.442 [main] DEBUG com.zaxxer.hikari.HikariConfig - allowPoolSuspension.............true
+	16:10:36.442 [main] DEBUG com.zaxxer.hikari.HikariConfig - autoCommit......................false
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - catalog.........................
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - connectionInitSql...............
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - connectionTestQuery.............
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - connectionTimeout...............5000
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSource......................
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSourceClassName.............org.hsqldb.jdbc.JDBCDataSourceSpied
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSourceJNDI..................
+	16:10:36.443 [main] DEBUG com.zaxxer.hikari.HikariConfig - dataSourceProperties............{user=sa, password=<masked>, url=jdbc:hsqldb:mem:testdb}
+	16:10:36.444 [main] DEBUG com.zaxxer.hikari.HikariConfig - driverClassName.................
+	16:10:36.444 [main] DEBUG com.zaxxer.hikari.HikariConfig - healthCheckProperties...........{}
+	16:10:36.444 [main] DEBUG com.zaxxer.hikari.HikariConfig - healthCheckRegistry.............
+	16:10:36.444 [main] DEBUG com.zaxxer.hikari.HikariConfig - idleTimeout.....................600000
+	16:10:36.444 [main] DEBUG com.zaxxer.hikari.HikariConfig - initializationFailFast..........true
+	16:10:36.444 [main] DEBUG com.zaxxer.hikari.HikariConfig - isolateInternalQueries..........false
+	16:10:36.444 [main] DEBUG com.zaxxer.hikari.HikariConfig - jdbc4ConnectionTest.............false
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - jdbcUrl.........................
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - leakDetectionThreshold..........10000
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - maxLifetime.....................1800000
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - maximumPoolSize.................4
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - metricRegistry..................
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - metricsTrackerFactory...........
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - minimumIdle.....................1
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - password........................<masked>
+	16:10:36.445 [main] DEBUG com.zaxxer.hikari.HikariConfig - poolName........................test
+	16:10:36.446 [main] DEBUG com.zaxxer.hikari.HikariConfig - readOnly........................false
+	16:10:36.446 [main] DEBUG com.zaxxer.hikari.HikariConfig - registerMbeans..................true
+	16:10:36.446 [main] DEBUG com.zaxxer.hikari.HikariConfig - scheduledExecutorService........
+	16:10:36.446 [main] DEBUG com.zaxxer.hikari.HikariConfig - threadFactory...................
+	16:10:36.446 [main] DEBUG com.zaxxer.hikari.HikariConfig - transactionIsolation............TRANSACTION_READ_COMMITTED
+	16:10:36.446 [main] DEBUG com.zaxxer.hikari.HikariConfig - username........................
+	16:10:36.446 [main] DEBUG com.zaxxer.hikari.HikariConfig - validationTimeout...............5000
+	16:10:36.447 [main] INFO  com.zaxxer.hikari.HikariDataSource - test - is starting.
+	16:10:36.551 [Hikari connection filler (pool test)] DEBUG org.hsqldb.jdbc.JDBCDataSourceSpied - Connecting hsqldb with driver spy to jdbc:log4jdbc:hsqldb:mem:testdb
+	16:10:36.881 [Hikari connection filler (pool test)] INFO  jdbc.connection - 1. Connection opened
+	16:10:36.886 [Hikari connection filler (pool test)] ERROR jdbc.sqlonly - 1. Connection.setNetworkTimeout(java.util.concurrent.ThreadPoolExecutor@21ffe2f9[Running, pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], 5000;
+	java.sql.SQLFeatureNotSupportedException: feature not supported
+		at org.hsqldb.jdbc.JDBCUtil.notSupported(Unknown Source) ~[hsqldb-2.3.3.jar:na]
+		at org.hsqldb.jdbc.JDBCConnection.setNetworkTimeout(Unknown Source) ~[hsqldb-2.3.3.jar:na]
+		at net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy.setNetworkTimeout(ConnectionSpy.java:1120) ~[log4jdbc-log4j2-jdbc4.1-1.16.jar:na]
+		at com.zaxxer.hikari.pool.PoolBase.getAndSetNetworkTimeout(PoolBase.java:423) [HikariCP-2.4.2.jar:na]
+		at com.zaxxer.hikari.pool.PoolBase.setupConnection(PoolBase.java:334) [HikariCP-2.4.2.jar:na]
+		at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:315) [HikariCP-2.4.2.jar:na]
+		at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:171) [HikariCP-2.4.2.jar:na]
+		at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:441) [HikariCP-2.4.2.jar:na]
+		at com.zaxxer.hikari.pool.HikariPool.access$300(HikariPool.java:66) [HikariCP-2.4.2.jar:na]
+		at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:576) [HikariCP-2.4.2.jar:na]
+		at com.zaxxer.hikari.pool.HikariPool$PoolEntryCreator.call(HikariPool.java:569) [HikariCP-2.4.2.jar:na]
+		at java.util.concurrent.FutureTask.run(FutureTask.java:266) [na:1.8.0_45]
+		at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1142) [na:1.8.0_45]
+		at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:617) [na:1.8.0_45]
+		at java.lang.Thread.run(Thread.java:745) [na:1.8.0_45]
+	16:10:36.887 [Hikari connection filler (pool test)] DEBUG com.zaxxer.hikari.pool.PoolBase - test - Connection.setNetworkTimeout() is not supported (feature not supported)
+	16:10:36.888 [Hikari connection filler (pool test)] DEBUG com.zaxxer.hikari.pool.HikariPool - test - Added connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd
+	16:10:36.899 [main] DEBUG c.z.h.h.HikariConnectionProvider - HikariCP Configured
+	16:10:36.931 [main] INFO  org.hibernate.dialect.Dialect - HHH000400: Using dialect: org.hibernate.dialect.HSQLDialect
+	16:10:37.093 [main] INFO  o.h.h.i.a.ASTQueryTranslatorFactory - HHH000397: Using ASTQueryTranslatorFactory
+	16:10:37.535 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000228: Running hbm2ddl schema update
+	16:10:37.536 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000102: Fetching database metadata
+	16:10:37.541 [main] INFO  jdbc.sqlonly - select sequence_name from information_schema.system_sequences 
+
+	16:10:37.550 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000396: Updating schema
+	16:10:37.566 [main] INFO  jdbc.sqlonly - create table table_batch_test (id bigint not null, name varchar(255), primary key (id)) 
+
+	16:10:37.567 [main] INFO  jdbc.sqlonly - create table table_test (id bigint generated by default as identity (start with 1), name varchar(255), 
+	primary key (id)) 
+
+	16:10:37.568 [main] INFO  o.h.tool.hbm2ddl.SchemaUpdate - HHH000232: Schema update complete
+	16:10:37.568 [main] DEBUG com.zaxxer.hikari.pool.PoolBase - test - Reset (nothing) on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd
+	16:10:37.617 [main] INFO  com.descartes.hibhik.Emf - Test db opened.
+	16:10:37.620 [main] DEBUG com.descartes.hibhik.TestDbCrud - insert a record
+	16:10:37.698 [main] INFO  jdbc.sqlonly - insert into table_test (name, id) values ('Marvin', default) 
+
+	16:10:37.709 [main] DEBUG com.descartes.hibhik.TestDbCrud - list all records
+	16:10:37.835 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
+
+	16:10:37.841 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.841 [main] DEBUG com.descartes.hibhik.TestDbCrud - First record ID is 1
+	16:10:37.842 [main] DEBUG com.descartes.hibhik.TestDbCrud - list all records typesafe
+	16:10:37.866 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
+
+	16:10:37.867 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.868 [main] DEBUG com.descartes.hibhik.TestDbCrud - find by ID
+	16:10:37.875 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ 
+	where testtable0_.id=1 
+
+	16:10:37.881 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.881 [main] DEBUG com.descartes.hibhik.TestDbCrud - update name
+	16:10:37.883 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ 
+	where testtable0_.id=1 
+
+	16:10:37.899 [main] INFO  jdbc.sqlonly - batching 1 statements: 1: update table_test set name='Marvin Martian' where id=1 
+
+	16:10:37.901 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify updated name
+	16:10:37.903 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ 
+	where testtable0_.id=1 
+
+	16:10:37.904 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.905 [main] DEBUG com.descartes.hibhik.TestDbCrud - insert with flush
+	16:10:37.906 [main] INFO  jdbc.sqlonly - insert into table_test (name, id) values ('Record 2', default) 
+
+	16:10:37.907 [main] DEBUG com.descartes.hibhik.TestDbCrud - Second record ID is 2
+	16:10:37.908 [main] DEBUG com.descartes.hibhik.TestDbCrud - fail an update
+	16:10:37.911 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ 
+	where testtable0_.id=2 
+
+	16:10:37.912 [main] DEBUG com.descartes.hibhik.TestDbCrud - Tx rolled back: java.lang.RuntimeException: Rollback test.
+	16:10:37.913 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify update failed
+	16:10:37.915 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ 
+	where testtable0_.id=2 
+
+	16:10:37.916 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.916 [main] DEBUG com.descartes.hibhik.TestDbCrud - delete first record by ID, without 'finding' the record
+	16:10:37.939 [main] INFO  jdbc.sqlonly - delete from table_test where id=1 
+
+	16:10:37.940 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify delete of first record
+	16:10:37.942 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
+
+	16:10:37.943 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.943 [main] DEBUG com.descartes.hibhik.TestDbCrud - delete second record by ID, 'finding' the record first
+	16:10:37.946 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_0_, testtable0_.name as name2_1_0_ from table_test testtable0_ 
+	where testtable0_.id=2 
+
+	16:10:37.951 [main] INFO  jdbc.sqlonly - batching 1 statements: 1: delete from table_test where id=2 
+
+	16:10:37.951 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify no records in table left
+	16:10:37.953 [main] INFO  jdbc.sqlonly - select testtable0_.id as id1_1_, testtable0_.name as name2_1_ from table_test testtable0_ 
+
+	16:10:37.954 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.954 [main] DEBUG com.descartes.hibhik.TestDbCrud - batch insert
+	16:10:37.959 [main] INFO  jdbc.sqlonly - batching 5 statements: 1: insert into table_batch_test (name, id) values ('Batchname1', 1) 
+	2: insert into table_batch_test (name, id) values ('Batchname2', 2) 3: insert into table_batch_test 
+	(name, id) values ('Batchname3', 3) 4: insert into table_batch_test (name, id) values ('Batchname4', 
+	4) 5: insert into table_batch_test (name, id) values ('Batchname5', 5) 
+
+	16:10:37.963 [main] INFO  jdbc.sqlonly - batching 5 statements: 1: insert into table_batch_test (name, id) values ('Batchname6', 6) 
+	2: insert into table_batch_test (name, id) values ('Batchname7', 7) 3: insert into table_batch_test 
+	(name, id) values ('Batchname8', 8) 4: insert into table_batch_test (name, id) values ('Batchname9', 
+	9) 5: insert into table_batch_test (name, id) values ('Batchname10', 10) 
+
+	16:10:37.964 [main] DEBUG com.descartes.hibhik.TestDbCrud - verify batch insert
+	16:10:37.969 [main] INFO  jdbc.sqlonly - select batchtestt0_.id as id1_0_, batchtestt0_.name as name2_0_ from table_batch_test batchtestt0_ 
+
+	16:10:37.972 [main] DEBUG c.z.hikari.pool.ProxyConnection - test - Executed rollback on connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd due to dirty commit state on close().
+	16:10:37.974 [main] INFO  com.zaxxer.hikari.pool.HikariPool - test - is closing down.
+	16:10:37.975 [main] DEBUG com.zaxxer.hikari.pool.HikariPool - Before closing	pool test stats (total=1, active=0, idle=1, waiting=0)
+	16:10:37.977 [Hikari connection closer (pool test)] DEBUG com.zaxxer.hikari.pool.PoolBase - test - Closing connection net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy@40cfc8bd: (connection evicted by user)
+	16:10:37.978 [Hikari connection closer (pool test)] INFO  jdbc.connection - 1. Connection closed
+	16:10:37.978 [main] DEBUG com.zaxxer.hikari.pool.HikariPool - After closing	pool test stats (total=0, active=0, idle=0, waiting=0)
+	16:10:37.979 [main] INFO  com.descartes.hibhik.Emf - Test db closed.
+	Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.31 sec - in com.descartes.hibhik.TestDbCrud
 
 	Results :
 
@@ -339,7 +275,7 @@ Output from `mvn clean test` :
 	[INFO] ------------------------------------------------------------------------
 	[INFO] BUILD SUCCESS
 	[INFO] ------------------------------------------------------------------------
-	[INFO] Total time: 6.376 s
-	[INFO] Finished at: 2015-08-17T11:28:39+02:00
-	[INFO] Final Memory: 18M/226M
+	[INFO] Total time: 4.617 s
+	[INFO] Finished at: 2015-11-13T16:10:38+01:00
+	[INFO] Final Memory: 10M/155M
 	[INFO] ------------------------------------------------------------------------

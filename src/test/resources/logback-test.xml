@@ -26,12 +26,22 @@
 	</appender>
 
     <logger name="com.descartes" level="info" />
-    <logger name="nl.intercommit" level="info" />
-
     <logger name="com.descartes.hibhik" level="debug" />
-    <logger name="org.jdbcdslog" level="info" />
+    
+    <!--  Logging categories used by log4jdbc -->
+    
+    <logger name="jdbc" level="info" />
+    <!-- SQLlog shows the actual queries -->
+    <logger name="jdbc.sqlonly" level="info" />
+    <logger name="jdbc.sqltiming" level="off" />
+    <!-- JDBC audit logs rollback and close but also a lot of other stuff -->
+    <logger name="jdbc.audit" level="off" />
+    <logger name="jdbc.resultset" level="off" />
+    <logger name="jdbc.resultsettable" level="off" />
+
+    <logger name="java.sql.DatabaseMetaData" level="warn" />
     <logger name="org.hsqldb" level="debug" />
-    <logger name="org.hibernate.SQL" level="debug" />
+    <logger name="org.hibernate.SQL" level="info" />
     <logger name="com.zaxxer.hikari" level="debug" />
     <logger name="com.zaxxer.hikari.HikariPool" level="debug" />
     
