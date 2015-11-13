@@ -37,7 +37,7 @@ This JDBC logging spy is also noted on HikariCP's [JDBC Logging](https://github.
 Unfortunately, it did not work out of the box for HSQLDB in combination with a `dataSourceClassName`. 
 A custom datasource "spy" class is used, see `src/main/java/org/hsqldb/jdbc`.
 This custom datasource "spy" class is not needed though, there are two alternatives to logging the JDBC statements.
-One alternative is to specify a `driverClassName`" instead of a `dataSourceClassName`,
+One alternative is to specify a `driverClassName` instead of a `dataSourceClassName`,
 the other alternative is to use HSQLDB's own "sqllog" option.
 Both of these options are shown and documented in `src/test/resources/db-test.properties`.
 
